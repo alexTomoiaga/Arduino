@@ -1,0 +1,316 @@
+#include <Servo.h>
+// Pinii motor 1
+#define mpin00 5
+#define mpin01 6
+// Pinii motor 2
+#define mpin10 3
+#define mpin11 11
+
+#define left 1
+#define right 0
+#define forward 0
+#define backwards 1
+
+#define distanceC 16.66
+
+#define degree2rad 0.01745329252
+
+#define led0 0
+#define led1 37
+#define led2 75
+#define led3 112
+#define led4 150
+
+#define pinLed1 1
+#define pinLed2 2
+#define pinLed3 3
+#define pinLed4 4
+
+#define angleC 3
+
+#define actualSpeed 150
+
+
+float servoDistance[11];
+float actualAngle = 0;
+int start = 1;
+int on = 1;
+
+unsigned int EchoPin = 12;           // connect Pin 2(Arduino digital io) to Echo at US-020
+unsigned int TrigPin = 13;           // connect Pin 3(Arduino digital io) to Trig at US-020
+unsigned long Time_Echo_us = 0;
+unsigned long Len_mm  = 0;
+
+
+Servo srv;
+
+void setup() {
+  // configurarea pinilor motor ca iesire, initial valoare 0
+  Serial.begin(9600);
+  digitalWrite(mpin00, 0);
+  digitalWrite(mpin01, 0);
+  digitalWrite(mpin10, 0);
+  digitalWrite(mpin11, 0);
+  pinMode (mpin00, OUTPUT);
+  pinMode (mpin01, OUTPUT);
+  pinMode (mpin10, OUTPUT);
+  pinMode (mpin11, OUTPUT);
+
+
+  pinMode (pinLed1, OUTPUT);
+  pinMode (pinLed2, OUTPUT);
+  pinMode (pinLed3, OUTPUT);
+  pinMode (pinLed4, OUTPUT);
+
+  pinMode(EchoPin, INPUT);
+  pinMode(TrigPin, OUTPUT);
+  digitalWrite(TrigPin, LOW);
+
+
+  pinMode(13, OUTPUT);
+}
+
+
+void StartMotor (int m1, int m2, int forwardd, float speed)
+{
+
+  if (speed == 0) // oprire
+  {
+    digitalWrite(m1, 0);
+    digitalWrite(m2, 0);
+  }
+  else
+  {
+    if (forwardd)
+    {
+      digitalWrite(m2, 0);
+      analogWrite (m1, speed); // folosire PWM
+    }
+    else
+    {
+      digitalWrite(m1, 0);
+      analogWrite(m2, speed);
+    }
+  }
+}
+
+void left_right(int lORr, float angle)
+{
+  float delayTime = (angle * angleC);
+
+  //  Serial.println("delay time la unghi");
+  //  Serial.println(delayTime);
+  //  delay(5000);
+
+  digitalWrite(pinLed1, HIGH);
+  if ( lORr == 1)
+  {
+    StartMotor (mpin00, mpin01, 0, actualSpeed);
+    StartMotor (mpin10, mpin11, 0, actualSpeed);
+  }
+  else
+  {
+    StartMotor (mpin00, mpin01, 1, actualSpeed);
+    StartMotor (mpin10, mpin11, 1, actualSpeed);
+  }
+  delay(delayTime);
+  digitalWrite(pinLed1, LOW);
+  delayStopped(5);
+}
+
+
+void forward_backwards(int fORb, float distance)
+{
+  float delayTime = (distance * distanceC);
+  //  Serial.println("delay time la distanta");
+  //  Serial.println(delayTime);
+  //  delay(5000);
+
+  for (int i = 0; i <= actualSpeed; i++)
+  {
+    digitalWrite(pinLed1, HIGH);
+    if (i > led1)
+      digitalWrite(pinLed1, HIGH);
+    if (i > led2)
+      digitalWrite(pinLed1, HIGH);
+    if (i > led3)
+      digitalWrite(pinLed1, HIGH);
+    delay(1);
+  }
+  if ( fORb == 1)
+  {
+    StartMotor (mpin00, mpin01, 0, actualSpeed);
+    StartMotor (mpin10, mpin11, 1, actualSpeed);
+  }
+  else
+  {
+    StartMotor (mpin00, mpin01, 1, actualSpeed);
+    StartMotor (mpin10, mpin11, 0, actualSpeed);
+  }
+
+  if (delayTime > 50)
+    delay(delayTime - 50);
+
+  digitalWrite(pinLed1, LOW);
+  digitalWrite(pinLed2, LOW);
+  digitalWrite(pinLed3, LOW);
+  digitalWrite(pinLed4, LOW);
+  delayStopped(5);
+}
+
+float cossinus(float angle, float le) {
+  float rad = angle * degree2rad;
+
+  //  Serial.println("le");
+  //  Serial.println(le);
+  //  delay(5000);
+  //  Serial.println("cos(rad)");
+  //  Serial.println(cos(rad));
+  //  delay(5000);
+  float rez = le / cos(rad);
+  //  Serial.println("rez");
+  //  Serial.println(rez);
+  //  delay(5000);
+  return rez;
+}
+
+
+// Functie de siguranta
+// Executa oprire motoare, urmata de delay
+void delayStopped(int ms)
+{
+  StartMotor (mpin00, mpin01, 0, 0);
+  StartMotor (mpin10, mpin11, 0, 0);
+  delay(ms);
+}
+// Utilizare servo
+// Pozitionare in trei unghiuri
+// La final, ramane in mijloc (90 grade)
+void playWithServo(int pin)
+{
+  Serial.println("within sonar fun");
+
+  srv.attach(pin);
+  for (int i = 0; i <= 10; i++)
+  {
+    srv.write(i * 18);
+    //    Serial.println("in for la i");
+    //    Serial.println(i);
+    //    Serial.println(i * 18);
+    digitalWrite(TrigPin, HIGH);              //begin to send a high pulse, then US-020 begin to measure the distance
+    delay(20);
+    digitalWrite(TrigPin, LOW);
+    Time_Echo_us = pulseIn(EchoPin, HIGH);   //calculate the pulse width at EchoPin,
+    Len_mm = (Time_Echo_us * 34 / 100) / 20; //calculate the distance by pulse width, Len_mm = (Time_Echo_us * 0.34mm/us) / 2 (mm)
+    Serial.println(Len_mm);
+    servoDistance[i] = Len_mm;
+    delay(50);
+  }
+
+  srv.write(90);
+  srv.detach();
+}
+
+
+void servoRead(int pin ) {
+  srv.attach(pin);
+  srv.write(90);
+  digitalWrite(TrigPin, HIGH);              //begin to send a high pulse, then US-020 begin to measure the distance
+  delay(20);
+  digitalWrite(TrigPin, LOW);
+  Time_Echo_us = pulseIn(EchoPin, HIGH);   //calculate the pulse width at EchoPin,
+  Len_mm = (Time_Echo_us * 34 / 100) / 20; //calculate the distance by pulse width, Len_mm = (Time_Echo_us * 0.34mm/us) / 2 (mm)
+  //  Serial.println("Lungime start");
+  //  Serial.println(Len_mm);
+  //  delay(5000);
+  servoDistance[5] = Len_mm;
+  srv.detach();
+
+}
+
+void loop(){
+  digitalWrite(TrigPin, HIGH);              //begin to send a high pulse, then US-020 begin to measure the distance
+  delay(20);
+  digitalWrite(TrigPin, LOW);
+  Time_Echo_us = pulseIn(EchoPin, HIGH);   //calculate the pulse width at EchoPin,
+  Len_mm = (Time_Echo_us * 34 / 100) / 20; //calculate the distance by pulse width, Len_mm = (Time_Echo_us * 0.34mm/us) / 2 (mm)
+  
+  if(Len_mm > 20)
+    forward_backwards(forward,Len_mm-20);
+  left_right(right,90);
+  forward_backwards(forward,20);
+  left_right(left,90);
+}
+
+void loop1() {
+
+
+  ////////////////////// read buton
+
+  //  Serial.println("Start:");
+  //delay(5000);
+
+  if (on == 1) {
+    servoRead(8);
+    //    Serial.println("Before forward");
+    if (servoDistance[5] > 20 and start == 1)
+    {
+      forward_backwards(forward, servoDistance[5] - 20);
+      start = 0;
+    }
+
+    //    Serial.println("after forward");
+    //    delay(1000);
+    //
+    //    Serial.println("before sonar");
+    //    delay(1000);
+    playWithServo(8);
+
+    //    Serial.println("after sonar");
+    //    delay(1000);
+    //
+    //
+    //    Serial.println("After calibration");
+    //    delay(1000);
+
+    for (int i = 0; i <= 10; i++)
+    {
+      Serial.println(servoDistance[i]);
+    }
+    //    delay(10000);
+
+    for (int i = 4; i >= 0; i--) {
+      if (servoDistance[i] - servoDistance[10 - i] > 0) {
+        actualAngle = 90 - i * 9 / 10 * 18;
+        left_right(left, actualAngle);
+        //        Serial.println(actualAngle);
+        //        Serial.println(actualAngle);
+        //        delay(5000);
+        float util =  (float) cossinus(actualAngle, servoDistance[5]);
+        //        Serial.println("valoare util pe stanga");
+        //        Serial.println(util);
+        //        delay(10000);
+        forward_backwards(forward, util);
+        start = 1;
+        left_right(right, actualAngle);
+      }
+      else if (servoDistance[i] - servoDistance[10 - i] < 0) {
+        actualAngle = 90 - i * 9 / 10 * 18;
+        left_right(right, actualAngle);
+        float util = (float) cossinus(actualAngle, servoDistance[5]);
+        //        Serial.println("valoare util pe dreapta");
+        //        Serial.println(util);
+        //        delay(10000);
+        forward_backwards(forward, util);
+        start = 1;
+        left_right(left, actualAngle);
+      }
+    }
+    //    delay(5000);
+
+  }
+  else
+  {
+    delayStopped(1);
+  }
+}
